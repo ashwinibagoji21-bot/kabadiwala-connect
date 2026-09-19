@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import axios from "axios";
 import "./styles.css";
 
-const API = "http://localhost:5000/api";
+const API = "https://kabadiwala-connect-dl1.onrender.com/api";
 const roles = [
   { value: "user", label: "User" },
   { value: "kabadiwala", label: "Kabadiwala" },
@@ -15,54 +15,203 @@ function App() {
   const [user, setUser] = useState(null);
   const [form, setForm] = useState({ name: "", phone: "", address: "", email: "", password: "", role: "user" });
   const [message, setMessage] = useState("");
-
+  const [otpMode, setOtpMode] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [registeredPhone, setRegisteredPhone] = useState("");
   const update = (key, value) => setForm({ ...form, [key]: value });
 
-  async function submitAuth(e) {
-    e.preventDefault();
-    setMessage("");
-    try {
-      const endpoint = mode === "login" ? "/auth/login" : "/auth/register";
-      const payload = mode === "login"
-        ? { phone: form.phone, password: form.password, role: form.role }
-        : form;
-      const response = await axios.post(API + endpoint, payload);
-      setUser(response.data.user);
-      setMessage("Success");
-    } catch (error) {
-      setMessage(error.response?.data?.message || "Something went wrong.");
-    }
-  }
+ async function submitAuth(e) {
+  e.preventDefault();
+  setMessage("");
 
-  if (!user) {
-    return (
-      <main className="auth-page">
-        <section className="card auth-card">
-          <div className="brand">♻️ Kabadiwala Connect</div>
-          <p className="subtitle">Smart waste collection and recycling</p>
-          <div className="tabs">
-            <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Login</button>
-            <button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Register</button>
-          </div>
-          <form onSubmit={submitAuth}>
-            {mode === "register" && <>
-              <input placeholder="Full name" value={form.name} onChange={e => update("name", e.target.value)} required />
-              <input placeholder="Address" value={form.address} onChange={e => update("address", e.target.value)} required />
-              <input placeholder="Email (optional)" value={form.email} onChange={e => update("email", e.target.value)} />
-            </>}
-            <input placeholder="Phone number" value={form.phone} onChange={e => update("phone", e.target.value)} required />
-            <input type="password" placeholder="Password" value={form.password} onChange={e => update("password", e.target.value)} required />
-            <select value={form.role} onChange={e => update("role", e.target.value)}>
-              {roles.map(role => <option key={role.value} value={role.value}>{role.label}</option>)}
-            </select>
-            <button className="primary" type="submit">{mode === "login" ? "Login" : "Create account"}</button>
-          </form>
-          {message && <p className="message">{message}</p>}
-          <small>Demo note: use the same phone and password for login. Add MongoDB and secure password hashing before production.</small>
-        </section>
-      </main>
+  try {
+    const endpoint = mode === "login"
+      ? "/auth/login"
+      : "/auth/register";
+
+    const payload = mode === "login"
+      ? {
+          phone: form.phone,
+          password: form.password,
+          role: form.role
+        }
+      : form;
+
+    const response = await axios.post(API + endpoint, payload);
+
+    if (mode === "register" && response.data.requiresOtp) {
+      setRegisteredPhone(response.data.phone);
+      setOtpMode(true);
+
+      setMessage(
+        `OTP generated for testing: ${response.data.otp}`
+      );
+
+      return;
+    }
+
+    setUser(response.data.user);
+    setMessage("Success");
+
+  } catch (error) {
+    setMessage(
+      error.response?.data?.message || "Something went wrong."
     );
   }
+}
+async function verifyOtp(e) {
+  e.preventDefault();
+  setMessage("");
+
+  try {
+    const response = await axios.post(
+      API + "/auth/verify-otp",
+      {
+        phone: registeredPhone,
+        otp
+      }
+    );
+
+    setUser(response.data.user);
+    setOtpMode(false);
+    setOtp("");
+
+    setMessage("Account verified successfully.");
+
+  } catch (error) {
+    setMessage(
+      error.response?.data?.message || "Invalid OTP."
+    );
+  }
+}
+
+  if (!user) {
+  return (
+    <main className="auth-page">
+      <section className="card auth-card">
+
+        {otpMode ? (
+          <>
+            <div className="brand">♻️ Kabadiwala Connect</div>
+
+            <p className="subtitle">Verify your phone number</p>
+
+            <p>
+              Enter the 6-digit OTP sent to {registeredPhone}.
+            </p>
+
+            <form onSubmit={verifyOtp}>
+              <input
+                type="text"
+                placeholder="Enter OTP"
+                value={otp}
+                onChange={e => setOtp(e.target.value)}
+                maxLength="6"
+                required
+              />
+
+              <button className="primary" type="submit">
+                Verify OTP
+              </button>
+            </form>
+
+            {message && <p className="message">{message}</p>}
+          </>
+        ) : (
+          <>
+            <div className="brand">♻️ Kabadiwala Connect</div>
+
+            <p className="subtitle">
+              Smart waste collection and recycling
+            </p>
+
+            <div className="tabs">
+              <button
+                className={mode === "login" ? "active" : ""}
+                onClick={() => setMode("login")}
+              >
+                Login
+              </button>
+
+              <button
+                className={mode === "register" ? "active" : ""}
+                onClick={() => setMode("register")}
+              >
+                Register
+              </button>
+            </div>
+
+            <form onSubmit={submitAuth}>
+
+              {mode === "register" && (
+                <>
+                  <input
+                    placeholder="Full name"
+                    value={form.name}
+                    onChange={e => update("name", e.target.value)}
+                    required
+                  />
+
+                  <input
+                    placeholder="Address"
+                    value={form.address}
+                    onChange={e => update("address", e.target.value)}
+                    required
+                  />
+
+                  <input
+                    placeholder="Email (optional)"
+                    value={form.email}
+                    onChange={e => update("email", e.target.value)}
+                  />
+                </>
+              )}
+
+              <input
+                placeholder="Phone number"
+                value={form.phone}
+                onChange={e => update("phone", e.target.value)}
+                required
+              />
+
+              <input
+                type="password"
+                placeholder="Password"
+                value={form.password}
+                onChange={e => update("password", e.target.value)}
+                required
+              />
+
+              <select
+                value={form.role}
+                onChange={e => update("role", e.target.value)}
+              >
+                {roles.map(role => (
+                  <option key={role.value} value={role.value}>
+                    {role.label}
+                  </option>
+                ))}
+              </select>
+
+              <button className="primary" type="submit">
+                {mode === "login" ? "Login" : "Create account"}
+              </button>
+
+            </form>
+
+            {message && <p className="message">{message}</p>}
+
+            <small>
+              Demo note: use the same phone and password for login.
+              Add MongoDB and secure password hashing before production.
+            </small>
+          </>
+        )}
+
+      </section>
+    </main>
+  );
+}
 
   return <Dashboard user={user} logout={() => setUser(null)} />;
 }

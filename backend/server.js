@@ -27,7 +27,22 @@ const userSchema = new mongoose.Schema({
   address: String,
   email: String,
   password: String,
-  role: String
+  role: String,
+
+  otp: {
+    type: String,
+    default: null
+  },
+
+  otpExpires: {
+    type: Date,
+    default: null
+  },
+
+  isVerified: {
+    type: Boolean,
+    default: false
+  }
 });
 
 const pickupSchema = new mongoose.Schema({
